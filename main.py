@@ -7,7 +7,8 @@ from telegram import (
     InlineKeyboardButton, 
     InlineKeyboardMarkup, 
     ChatMemberUpdated, 
-    ChatMember
+    ChatMember,
+    InputMediaPhoto
 )
 from telegram.ext import (
     Application, 
@@ -22,13 +23,22 @@ from telegram.ext import (
 # ========== CONFIGURATION ==========
 TOKEN = "8672542432:AAGWKjblkdwp0ueW2LTTvAPR5DK6N1ueu_Y"  # Replace with your bot token
 
+# ========== IMAGE CONFIGURATION ==========
+# TODO: Replace with your DIRECT image URL (must end with .jpg, .png, .gif, .webp)
+# Example direct URLs:
+# - https://i.ibb.co/your-image.jpg
+# - https://example.com/image.png
+WELCOME_IMAGE_URL = "https://i.ibb.co/ymZyctVF/QXCPYCFOHMGHNHS.jpg"  # <-- FIX THIS
+# If the above doesn't work, use a placeholder or upload your image to a direct-hosting service
+# like: https://telegra.ph/ (Telegram's image hosting) or https://imgur.com (get direct link)
+
 # ========== LANGUAGE SUPPORT ==========
 LANGUAGES = {
     "en": {
         "name": "English",
         "flag": "🇬🇧",
-        "welcome": "🌟 *Welcome to the Group Cleaner Bot!* 🌟\n\nPlease choose your preferred language:",
-        "lang_set": "✅ Language set to English! Now add me to a group and make me admin to start cleaning join/leave messages.",
+        "welcome": "🌟 *Welcome to Group Cleaner Bot!* 🌟\n\nPlease choose your preferred language:",
+        "lang_set": "✅ Language set to English!",
         "start_private": "🚀 *Group Cleaner Bot* is ready!\n\nAdd me to any group and make me an administrator. I will automatically delete all 'joined' and 'left' messages instantly.",
         "clean_enabled": "✨ Clean mode activated! I will now delete all join/leave messages in this group.",
         "clean_disabled": "❌ Clean mode deactivated. I will no longer delete join/leave messages.",
@@ -51,13 +61,15 @@ LANGUAGES = {
 • Use /clean on/off to toggle cleaning
 
 Made with ❤️ for clean groups
-"""
+""",
+        "add_to_group": "➕ Add me to a group",
+        "setup_complete": "🎉 *Setup complete!* 🎉\n\nNow add me to a group and make me admin to start cleaning!"
     },
     "ru": {
         "name": "Русский",
         "flag": "🇷🇺",
         "welcome": "🌟 *Добро пожаловать в Group Cleaner Bot!* 🌟\n\nПожалуйста, выберите предпочитаемый язык:",
-        "lang_set": "✅ Язык установлен: Русский! Добавьте меня в группу и сделайте админом, чтобы начать очистку сообщений о входе/выходе.",
+        "lang_set": "✅ Язык установлен: Русский!",
         "start_private": "🚀 *Group Cleaner Bot* готов!\n\nДобавьте меня в любую группу и сделайте администратором. Я буду автоматически удалять все сообщения о входе и выходе участников.",
         "clean_enabled": "✨ Режим очистки активирован! Теперь я буду удалять все сообщения о входе/выходе в этой группе.",
         "clean_disabled": "❌ Режим очистки деактивирован. Сообщения о входе/выходе больше не будут удаляться.",
@@ -80,13 +92,15 @@ Made with ❤️ for clean groups
 • Используйте /clean on/off для включения/выключения очистки
 
 Сделано с ❤️ для чистых групп
-"""
+""",
+        "add_to_group": "➕ Добавить меня в группу",
+        "setup_complete": "🎉 *Настройка завершена!* 🎉\n\nТеперь добавьте меня в группу и сделайте админом!"
     },
     "zh": {
         "name": "中文",
         "flag": "🇨🇳",
         "welcome": "🌟 *欢迎使用群聊清理机器人！* 🌟\n\n请选择您的首选语言：",
-        "lang_set": "✅ 语言设置为中文！将我添加到群组并设为管理员，即可开始清理加入/离开消息。",
+        "lang_set": "✅ 语言设置为中文！",
         "start_private": "🚀 *群聊清理机器人* 已就绪！\n\n将我添加到任何群组并设为管理员。我将自动删除所有成员加入和离开的消息。",
         "clean_enabled": "✨ 清理模式已激活！我将删除此群组中所有加入/离开消息。",
         "clean_disabled": "❌ 清理模式已停用。不再删除加入/离开消息。",
@@ -109,7 +123,9 @@ Made with ❤️ for clean groups
 • 使用 /clean on/off 切换清理功能
 
 用 ❤️ 打造干净群组
-"""
+""",
+        "add_to_group": "➕ 把我添加到群组",
+        "setup_complete": "🎉 *设置完成！* 🎉\n\n现在将我添加到群组并设为管理员！"
     }
 }
 
@@ -160,11 +176,11 @@ async def set_group_lang(chat_id: int, lang_code: str):
 
 # ========== COMMAND HANDLERS ==========
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /start command - show language selection or main menu"""
+    """Handle /start command - show language selection with image"""
     user_id = update.effective_user.id
     chat_type = update.effective_chat.type
     
-    # If in private chat, show language selection
+    # If in private chat, show language selection with image
     if chat_type == "private":
         keyboard = []
         for code, data in LANGUAGES.items():
@@ -175,7 +191,29 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         welcome_text = get_text("en", "welcome")  # Default to English for initial message
-        await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode="Markdown")
+        
+        # Try to send with image, fallback to text only
+        try:
+            if WELCOME_IMAGE_URL and WELCOME_IMAGE_URL.startswith("http"):
+                await update.message.reply_photo(
+                    photo=WELCOME_IMAGE_URL,
+                    caption=welcome_text,
+                    reply_markup=reply_markup,
+                    parse_mode="Markdown"
+                )
+            else:
+                await update.message.reply_text(
+                    welcome_text, 
+                    reply_markup=reply_markup, 
+                    parse_mode="Markdown"
+                )
+        except Exception as e:
+            logging.error(f"Failed to send image: {e}")
+            await update.message.reply_text(
+                welcome_text, 
+                reply_markup=reply_markup, 
+                parse_mode="Markdown"
+            )
     else:
         # In group, just show status
         lang = await get_group_lang(update.effective_chat.id)
@@ -276,21 +314,41 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lang_code = data.split("_")[1]
         user_languages[user_id] = lang_code
         
-        # Show confirmation with main menu
-        keyboard = [[InlineKeyboardButton("⚙️ Settings", callback_data="main_settings")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(
-            get_text(lang_code, "lang_set"), 
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
+        # Create inline button to add bot to group
+        bot_username = context.bot.username
+        add_to_group_url = f"https://t.me/{bot_username}?startgroup=start"
         
-        # Send main menu after a short delay
-        await asyncio.sleep(1)
-        await query.message.reply_text(
-            get_text(lang_code, "start_private"),
-            parse_mode="Markdown"
-        )
+        keyboard = [
+            [InlineKeyboardButton(
+                get_text(lang_code, "add_to_group"), 
+                url=add_to_group_url
+            )],
+            [InlineKeyboardButton("⚙️ Settings", callback_data="main_settings")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # Show confirmation with image and add button
+        confirmation_text = f"✅ {get_text(lang_code, 'lang_set')}\n\n{get_text(lang_code, 'setup_complete')}"
+        
+        try:
+            if WELCOME_IMAGE_URL and WELCOME_IMAGE_URL.startswith("http"):
+                await query.edit_message_caption(
+                    caption=confirmation_text,
+                    reply_markup=reply_markup,
+                    parse_mode="Markdown"
+                )
+            else:
+                await query.edit_message_text(
+                    confirmation_text,
+                    reply_markup=reply_markup,
+                    parse_mode="Markdown"
+                )
+        except Exception:
+            await query.edit_message_text(
+                confirmation_text,
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
     
     # Set language from settings
     elif data.startswith("setlang_"):
@@ -374,12 +432,6 @@ async def track_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     # Join event
     if old_status in ["left", "kicked"] and new_status in ["member", "administrator", "creator"]:
-        # Find and delete the service message (join)
-        # The service message is the one we're responding to
-        if update.chat_member.invite_link:
-            pass  # Handle invite link joins
-        
-        # Send a stylish notification that will be deleted after 2 seconds
         msg = await context.bot.send_message(
             chat_id, 
             get_text(lang, "join_msg", user=user_name),
