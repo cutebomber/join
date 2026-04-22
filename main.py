@@ -131,12 +131,12 @@ def main():
     # Create application
     application = Application.builder().token(BOT_TOKEN).build()
     
-    # Add handlers
+    # Add handlers - FIXED FILTERS
     application.add_handler(MessageHandler(
         filters.StatusUpdate.NEW_CHAT_MEMBERS | 
         filters.StatusUpdate.LEFT_CHAT_MEMBER |
         filters.StatusUpdate.NEW_CHAT_TITLE |
-        filters.StatusUpdate.CHAT_PHOTO,
+        filters.StatusUpdate.NEW_CHAT_PHOTO,  # Fixed: Changed from CHAT_PHOTO to NEW_CHAT_PHOTO
         delete_join_leave_messages
     ))
     
